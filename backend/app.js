@@ -1,0 +1,70 @@
+const express = require("express");
+const cookieParser = require("cookie-parser");
+const cors = require("cors");
+const path = require("path");
+require("dotenv").config({ path: path.resolve(__dirname, ".env") });
+
+const paymentRoutes = require("./routes/paymentRoutes");
+const contactRoutes = require("./routes/contactRoutes");
+const categoryRoutes = require("./routes/category-routes");
+
+
+// Import routes
+const authRoutes = require("./routes/authRoutes");
+const productRoutes = require("./routes/productRoutes");
+const orderRoutes = require("./routes/orderRoutes");
+const cartRoutes = require("./routes/cartRoutes");
+const adminRoutes = require("./routes/adminRoutes");
+const chatRoutes = require("./routes/chatRoutes");
+
+
+
+
+
+// Initialize Express app
+const app = express();
+
+// Middleware
+app.use(express.json());
+app.use(cookieParser());
+app.use(express.urlencoded({ extended: true }));
+app.use(cors({ origin: true, credentials: true }));
+
+// Routes
+app.use("/", authRoutes);
+app.use("/", productRoutes);
+app.use("/", orderRoutes);
+app.use("/", cartRoutes);
+app.use("/", adminRoutes);
+app.use("/", chatRoutes);
+app.use("/", paymentRoutes);
+app.use("/api/contact", contactRoutes);
+app.use("/api", categoryRoutes);
+
+// Serve static files in production
+if (process.env.NODE_ENV === "production") {
+    app.use(express.static(path.join(__dirname, "../frontend/build")));
+
+    app.get("*", (req, res) => {
+        res.sendFile(
+            path.resolve(__dirname, "../frontend/build", "index.html")
+        );
+    });
+}
+
+// Connect to database and start server (if running app.js directly)
+if (require.main === module) {
+    const connectDB = require("./config/database");
+
+    // Connect to database
+    connectDB();
+
+    // Start server
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, "0.0.0.0", () => {
+        console.log(`Server running on http://0.0.0.0:${PORT}`);
+    });
+
+}
+
+module.exports = app;

@@ -1,0 +1,463 @@
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { Upload, Image, DollarSign, Tag, Package, Save } from "lucide-react";
+import { toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
+const UploadProduct = () => {
+  const [product, setProduct] = useState({
+    name: "",
+    description: "",
+    price: "",
+    category: "",
+    image: null,
+    images: [],
+  });
+  const [preview, setPreview] = useState(null);
+  const [additionalPreviews, setAdditionalPreviews] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch("http://localhost:5000/api/categories");
+        const data = await res.json();
+        console.log("Fetched categories:", data);
+        if (res.ok) {
+          setCategories(data);
+        }
+      } catch (err) {
+        console.error("Failed to load categories", err);
+      }
+    };
+
+    fetchCategories();
+  }, []);
+
+  const [sizes, setSizes] = useState([
+    { size: "S", available: true },
+    { size: "M", available: true },
+    { size: "L", available: true },
+    { size: "XL", available: true },
+  ]);
+
+  const handleChange = (e) =>
+    setProduct({ ...product, [e.target.name]: e.target.value });
+
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setProduct({ ...product, image: file });
+      setPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleAdditionalImagesChange = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length > 0) {
+      setProduct({ ...product, images: files });
+      setAdditionalPreviews(files.map((file) => URL.createObjectURL(file)));
+    }
+  };
+
+  const handleSizeChange = (index, field, value) => {
+    const updatedSizes = [...sizes];
+    if (field === "size") {
+      updatedSizes[index].size = value;
+    } else if (field === "available") {
+      updatedSizes[index].available = value;
+    }
+    setSizes(updatedSizes);
+  };
+
+  const addSize = () => {
+    setSizes([...sizes, { size: "", available: true }]);
+  };
+
+  const removeSize = (index) => {
+    setSizes(sizes.filter((_, i) => i !== index));
+  };
+  const navigate = useNavigate();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    // Normalize category: first letter capital, rest lowercase
+    const normalizeCategory = (c) => {
+      if (!c) return "Self";
+      const t = c.trim();
+      if (t.length === 0) return "Self";
+      return t.charAt(0).toUpperCase() + t.slice(1).toLowerCase();
+    };
+
+    const normalizedCategory = normalizeCategory(product.category);
+    // Update UI with normalized value before submitting
+    setProduct((prev) => ({ ...prev, category: normalizedCategory }));
+
+    const formData = new FormData();
+    formData.append("name", product.name);
+    formData.append("description", product.description);
+    formData.append("price", product.price);
+    formData.append("category", normalizedCategory || "Self");
+    formData.append("image", product.image);
+
+    // Append additional images
+    product.images.forEach((file) => {
+      formData.append("images", file);
+    });
+
+    // Append sizes as JSON
+    formData.append(
+      "sizes",
+      JSON.stringify(sizes.filter((s) => s.size.trim() !== "")),
+    );
+
+    const res = await fetch("/api/uploadproduct", {
+      method: "POST",
+      body: formData,
+      credentials: "include",
+    });
+    if (res.ok) {
+      toast.success("Product uploaded successfully!");
+      // Reset form
+      setProduct({
+        name: "",
+        description: "",
+        price: "",
+        category: "Self",
+        image: null,
+        images: [],
+      });
+      setPreview(null);
+      setAdditionalPreviews([]);
+      setSizes([
+        { size: "S", available: true },
+        { size: "M", available: true },
+        { size: "L", available: true },
+        { size: "XL", available: true },
+      ]);
+    } else {
+      toast.error("Failed to upload product");
+    }
+  };
+
+  return (
+    <div className="w-full space-y-6">
+      {/* Header */}
+      <div className="mb-8">
+        <div className="flex items-center gap-3 mb-2">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg">
+            <Upload className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h1 className="text-3xl md:text-4xl font-bold gradient-text">
+              Upload Product
+            </h1>
+            <p className="text-gray-600 mt-1">
+              Add a new product to your store
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="modern-card rounded-2xl p-8 shadow-lg max-w-4xl">
+        <form
+          onSubmit={handleSubmit}
+          className="space-y-5"
+          encType="multipart/form-data"
+        >
+          {/* Name */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <Package className="w-4 h-4" />
+              Product Name
+            </label>
+            <input
+              type="text"
+              name="name"
+              value={product.name}
+              onChange={handleChange}
+              required
+              className="w-full rounded-xl border-2 border-gray-300 px-4 py-3 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none"
+              placeholder="Enter product name"
+            />
+          </div>
+
+          {/* Description */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Description
+            </label>
+            <textarea
+              name="description"
+              value={product.description}
+              onChange={handleChange}
+              required
+              rows="4"
+              className="w-full rounded-xl border-2 border-gray-300 px-4 py-3 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none resize-none"
+              placeholder="Enter product description"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Price */}
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                <DollarSign className="w-4 h-4" />
+                Price (₹)
+              </label>
+              <input
+                type="number"
+                name="price"
+                value={product.price}
+                onChange={handleChange}
+                required
+                className="w-full rounded-xl border-2 border-gray-300 px-4 py-3 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none"
+                placeholder="Enter product price"
+              />
+            </div>
+
+            {/* Category */}
+            <div className="relative">
+              <label>Catagory</label>
+              <input
+                type="text"
+                name="category"
+                value={product.category}
+                required
+                onChange={(e) => {
+                  setProduct({ ...product, category: e.target.value });
+                  setShowDropdown(true);
+                }}
+                onFocus={() => setShowDropdown(true)}
+                onBlur={() => setTimeout(() => setShowDropdown(false), 200)}
+                onKeyDown={async (e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+
+                    const exists = categories.find(
+                      (cat) =>
+                        cat.name.toLowerCase() ===
+                        product.category.toLowerCase(),
+                    );
+
+                    if (!exists && product.category.trim().length > 1) {
+                      // Create new category
+                      const res = await fetch(
+                        "http://localhost:5000/api/categories",
+                        {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ name: product.category }),
+                        },
+                      );
+
+                      const newCat = await res.json();
+                      setCategories([...categories, newCat]);
+                      setProduct({ ...product, category: newCat.name });
+                      setShowDropdown(false);
+                    }
+                  }
+                }}
+                className="w-full rounded-xl border-2 border-gray-300 px-4 py-3"
+                placeholder="Search or create category"
+              />
+
+              {showDropdown && (
+                <div className="absolute z-50 bg-white border rounded-xl w-full mt-1 max-h-60 overflow-y-auto shadow-lg">
+                  {(() => {
+                    const filtered = categories.filter((cat) =>
+                      product.category
+                        ? cat.name
+                            .toLowerCase()
+                            .includes(product.category.toLowerCase())
+                        : true,
+                    );
+
+                    if (filtered.length > 0) {
+                      return filtered.map((cat) => (
+                        <div
+                          key={cat._id}
+                          className="flex justify-between items-center px-4 py-2 hover:bg-indigo-100"
+                        >
+                          {/* Select Category */}
+                          <span
+                            onClick={() => {
+                              setProduct({ ...product, category: cat.name });
+                              setShowDropdown(false);
+                            }}
+                            className="cursor-pointer flex-1"
+                          >
+                            {cat.name}
+                          </span>
+
+                          {/* Delete Category */}
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+
+                              if (!window.confirm("Delete this category?"))
+                                return;
+
+                              await fetch(
+                                `http://localhost:5000/api/categories/${cat._id}`,
+                                { method: "DELETE" },
+                              );
+
+                              setCategories((prev) =>
+                                prev.filter((c) => c._id !== cat._id),
+                              );
+                            }}
+                            className="text-red-500 hover:text-red-700 text-xs ml-2"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ));
+                    }
+
+                    return (
+                      <div className="px-4 py-2 text-gray-400 text-sm">
+                        No match found
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Main Image Upload */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+              <Image className="w-4 h-4" />
+              Main Product Image <span className="text-red-500">*</span>
+            </label>
+            <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-indigo-400 transition-colors">
+              <input
+                type="file"
+                name="image"
+                accept="image/*"
+                onChange={handleImageChange}
+                required
+                className="w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 
+                file:rounded-lg file:border-0 file:text-sm file:font-semibold 
+                file:bg-gradient-to-r file:from-indigo-600 file:to-purple-600 file:text-white 
+                hover:file:from-indigo-700 hover:file:to-purple-700 cursor-pointer"
+              />
+              {preview && (
+                <div className="mt-4">
+                  <img
+                    src={preview}
+                    alt="Preview"
+                    className="w-40 h-40 object-cover rounded-xl border-2 border-gray-200 shadow-lg mx-auto"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Additional Images Upload */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Additional Product Images (Optional)
+            </label>
+            <div className="border-2 border-dashed border-gray-300 rounded-xl p-6 text-center hover:border-indigo-400 transition-colors">
+              <input
+                type="file"
+                name="images"
+                accept="image/*"
+                multiple
+                onChange={handleAdditionalImagesChange}
+                className="w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 
+                file:rounded-lg file:border-0 file:text-sm file:font-semibold 
+                file:bg-gradient-to-r file:from-indigo-600 file:to-purple-600 file:text-white 
+                hover:file:from-indigo-700 hover:file:to-purple-700 cursor-pointer"
+              />
+              {additionalPreviews.length > 0 && (
+                <div className="mt-4 flex flex-wrap gap-3 justify-center">
+                  {additionalPreviews.map((preview, index) => (
+                    <div key={index} className="relative">
+                      <img
+                        src={preview}
+                        alt={`Preview ${index + 1}`}
+                        className="w-24 h-24 object-cover rounded-xl border-2 border-gray-200 shadow-md"
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Sizes Management */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+              <Package className="w-4 h-4" />
+              Product Sizes
+            </label>
+            <div className="space-y-3 p-4 bg-gray-50 rounded-xl border border-gray-200">
+              {sizes.map((sizeItem, index) => (
+                <div key={index} className="flex items-center gap-3">
+                  <input
+                    type="text"
+                    value={sizeItem.size}
+                    onChange={(e) =>
+                      handleSizeChange(index, "size", e.target.value)
+                    }
+                    placeholder="Size (e.g., S, M, L, XL)"
+                    className="flex-1 rounded-xl border-2 border-gray-300 px-4 py-2 text-gray-900 focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all outline-none"
+                  />
+                  <label className="flex items-center gap-2 cursor-pointer px-4 py-2 bg-white rounded-xl border-2 border-gray-300 hover:border-indigo-400 transition-colors">
+                    <input
+                      type="checkbox"
+                      checked={sizeItem.available}
+                      onChange={(e) =>
+                        handleSizeChange(index, "available", e.target.checked)
+                      }
+                      className="w-4 h-4 text-indigo-600 rounded focus:ring-indigo-500"
+                    />
+                    <span className="text-sm font-medium text-gray-700">
+                      Available
+                    </span>
+                  </label>
+                  {sizes.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeSize(index)}
+                      className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-sm font-semibold transition-all"
+                    >
+                      Remove
+                    </button>
+                  )}
+                </div>
+              ))}
+              <button
+                type="button"
+                onClick={addSize}
+                className="w-full px-4 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-xl text-sm font-semibold transition-all border-2 border-gray-300 hover:border-gray-400"
+              >
+                + Add Size
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-2">
+              Add sizes for your product. Uncheck "Available" if a size is
+              currently out of stock.
+            </p>
+          </div>
+
+          {/* Submit Button */}
+          <button
+            type="submit"
+            className="w-full py-4 modern-button font-semibold rounded-xl text-base flex items-center justify-center gap-2 shadow-lg hover:shadow-xl transition-all"
+          >
+            <Save className="w-5 h-5" />
+            Upload Product
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+};
+
+export default UploadProduct;

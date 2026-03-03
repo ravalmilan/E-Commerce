@@ -1,0 +1,17 @@
+MONGO_URI=mongodb://localhost:27017/ecommerce
+JWT_SECRET=your-secret-key-here
+GEMINI_API_KEY=your-gemini-api-key
+PORT=5000
+NODE_ENV=development
+   
+# Email Configuration (for OTP functionality)
+EMAIL_SERVICE=gmail
+EMAIL_USER=your-email@gmail.com
+EMAIL_PASSWORD=your-app-password
+
+#razorpay 
+
+RAZORPAY_KEY_ID=your_razor_pay_api_id
+RAZORPAY_KEY_SECRET=razzor_pay_secret_key
+
+APP_BASE_URL=http://localhost:5000
